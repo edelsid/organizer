@@ -10,26 +10,34 @@ const posts = [{
   "id": crypto.randomUUID(),
   "type": "text",
   "label": "none",
-  "body": "Это обычное текстовое сообщение. У него нет никаких характеристик." ,
+  "body": "Это обычное текстовое сообщение. У него нет никаких характеристик.",
+  "attach": null,
   "date": "December 9, 2023 12:24",
 },
 {
   "id": crypto.randomUUID(),
   "type": "text",
   "label": "later",
-  "body": "Это что-то, что мне потребуется сделать позже. Сообщение говорит мне об этом при помощи цветной метки" ,
+  "body": "Это что-то, что мне потребуется сделать позже. Сообщение говорит мне об этом при помощи цветной метки",
+  "attach": null,
   "date": "December 10, 2023 10:13",
 },
 {
   "id": crypto.randomUUID(),
   "type": "links",
   "label": "imp",
-  "body": "https://ru.wikipedia.org/wiki/JavaScript" ,
+  "body": "https://ru.wikipedia.org/wiki/JavaScript",
+  "attach": null,
   "date": "December 11, 2023 02:43",
 }];
 
 const app = new Koa();
 const router = new Router();
+
+app.use(koaBody());
+app.use(cors());
+app.use(router.routes());
+app.use(router.allowedMethods());
 
 router.get('/', async (ctx) => {
   ctx.response.body ='hello';
@@ -46,11 +54,6 @@ router.get('/archive', async (ctx) => {
     throw err;
   }
 });
-
-app.use(koaBody());
-app.use(cors());
-app.use(router.routes());
-app.use(router.allowedMethods());
 
 app.use((ctx, next) => {
   ctx.response.set('Access-Control-Allow-Origin', '*');
@@ -75,10 +78,25 @@ wsServer.on('connection', (ws) => {
         "type": receivedMSG.msg.type,
         "label": receivedMSG.msg.label,
         "body": receivedMSG.msg.body,
+        "attach": receivedMSG.msg.attach,
         "date": Date.now(),
       }
       posts.push(newMessage);
       ws.send(JSON.stringify(newMessage));
+    } else if (receivedMSG.type === "search") {
+      let foundPosts = [];
+      posts.forEach((post) => {
+        if (post.body && post.body.includes(receivedMSG.msg)) {
+        foundPosts.push(post);
+      }});
+
+      const response = {
+        "operation": "search",
+        "arr": foundPosts,
+        "value": receivedMSG.msg,
+      }
+
+      ws.send(JSON.stringify(response));
     }
   });
 })
